@@ -61,22 +61,22 @@ def ensure_agent_enabled(name: str) -> None:
 try:
     from .services.voice import VoiceService
 
-    voice_service: VoiceService | None = (
-        VoiceService(
+    if settings.elevenlabs_api_key:
+        voice_service: VoiceService | None = VoiceService(
             api_key=settings.elevenlabs_api_key,
             voice_id=settings.elevenlabs_voice_id,
             model_id=settings.elevenlabs_model,
         )
-        if settings.elevenlabs_api_key
-        else None
-    )
+        print("[Voice] ElevenLabs service initialised.")
+    else:
+        voice_service = None
+        print("[Voice] ELEVENLABS_API_KEY not set — voice disabled.")
 except ImportError:
     voice_service = None  # type: ignore[assignment]
-
-if voice_service:
-    print("[Voice] ElevenLabs service initialised.")
-else:
-    print("[Voice] ElevenLabs not configured — set ELEVENLABS_API_KEY to enable.")
+    print("[Voice] 'elevenlabs' package not installed. Run: pip install -r requirements.txt")
+except Exception as _ve:
+    voice_service = None  # type: ignore[assignment]
+    print(f"[Voice] Failed to initialise ElevenLabs: {_ve}")
 
 # Firebase (Storage + Firestore)
 from .services import firebase_service as _fb

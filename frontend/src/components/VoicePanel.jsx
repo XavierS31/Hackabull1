@@ -4,152 +4,222 @@ import { useEffect, useRef, useState } from "react";
 const WS_PROTOCOL = window.location.protocol === "https:" ? "wss" : "ws";
 const WS_BASE = `${WS_PROTOCOL}://${window.location.host}`;
 
+const INTENT_LABELS = {
+  vision: "Vision Agent",
+  talk: "Conversation",
+  track: "Tracking",
+  chat: "Chatbot",
+};
+
 export default function VoicePanel() {
-  const [recording, setRecording] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [response, setResponse] = useState("");
+  const [intent, setIntent] = useState("");
+  const [agent, setAgent] = useState("");
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState("idle");
+  const [supported, setSupported] = useState(true);
 
-  const mediaRecorderRef = useRef(null);
-  const chunksRef = useRef([]);
+  const recognitionRef = useRef(null);
+  const enabledRef = useRef(false);
+  const busyRef = useRef(false);
   const wsRef = useRef(null);
 
+  // Keep refs in sync with state
+  useEffect(() => { enabledRef.current = enabled; }, [enabled]);
+  useEffect(() => { busyRef.current = busy; }, [busy]);
+
+  // WebSocket: receive push TTS alerts (fall / IR) from backend
   useEffect(() => {
     let ws;
     const connect = () => {
       ws = new WebSocket(`${WS_BASE}/ws/voice`);
       wsRef.current = ws;
       ws.binaryType = "arraybuffer";
-
-      ws.onmessage = (event) => {
-        if (event.data instanceof ArrayBuffer && event.data.byteLength > 0) {
-          const blob = new Blob([event.data], { type: "audio/mpeg" });
+      ws.onmessage = (e) => {
+        if (e.data instanceof ArrayBuffer && e.data.byteLength > 0) {
+          const blob = new Blob([e.data], { type: "audio/mpeg" });
           const url = URL.createObjectURL(blob);
-          const audio = new Audio(url);
-          audio.play().catch(() => {});
-          audio.onended = () => URL.revokeObjectURL(url);
+          new Audio(url).play().catch(() => {});
         }
       };
-
       ws.onclose = () => setTimeout(connect, 2000);
     };
     connect();
     return () => ws?.close();
   }, []);
 
-  const startRecording = async () => {
-    if (recording || busy) return;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : "audio/webm";
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
-      chunksRef.current = [];
+  // Continuous speech recognition
+  useEffect(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      setSupported(false);
+      return;
+    }
 
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
+    if (!enabled) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+
+    const recognition = new SR();
+    recognition.continuous = false; // one utterance at a time, then restart
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+    recognitionRef.current = recognition;
+
+    const startListening = () => {
+      if (!enabledRef.current || busyRef.current) return;
+      try {
+        recognition.start();
+      } catch {
+        // already started — ignore
+      }
+    };
+
+    recognition.onstart = () => setListening(true);
+
+    recognition.onresult = async (event) => {
+      const text = event.results[0][0].transcript.trim();
+      if (!text) return;
+
+      setTranscript(text);
+      setBusy(true);
+      busyRef.current = true;
+      setListening(false);
+      setResponse("");
+      setIntent("");
+      setAgent("");
+
+      const done = () => {
+        setBusy(false);
+        busyRef.current = false;
+        startListening();
       };
 
-      mediaRecorderRef.current = mediaRecorder;
-      mediaRecorder.start();
-      setRecording(true);
-      setStatus("recording");
-      setTranscript("");
-      setResponse("");
-    } catch {
-      setResponse("Microphone access denied.");
-    }
-  };
+      try {
+        const resp = await fetch("/api/voice/text-chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
 
-  const stopRecording = async () => {
-    if (!recording || !mediaRecorderRef.current) return;
-    setRecording(false);
-    setStatus("processing");
-    setBusy(true);
+        // Always read text headers first — they're present even on errors
+        const xResponse = resp.headers.get("X-Response") || "";
+        const xAgent = resp.headers.get("X-Agent") || "Agent";
+        const xIntent = resp.headers.get("X-Intent") || "chat";
 
-    const mr = mediaRecorderRef.current;
-    mr.stop();
-    mr.stream.getTracks().forEach((t) => t.stop());
+        if (!resp.ok) {
+          const body = await resp.json().catch(() => ({}));
+          setResponse(body.detail || xResponse || "Backend error.");
+          setAgent(xAgent || "Error");
+          setIntent(xIntent);
+          done();
+          return;
+        }
 
-    await new Promise((resolve) => {
-      mr.onstop = resolve;
-    });
-
-    const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-    const formData = new FormData();
-    formData.append("file", blob, "recording.webm");
-
-    try {
-      const resp = await fetch("/api/voice/chat", { method: "POST", body: formData });
-
-      if (resp.ok) {
-        const rawTranscript = resp.headers.get("X-Transcript") || "";
-        const rawResponse = resp.headers.get("X-Response") || "";
-        setTranscript(decodeURIComponent(rawTranscript));
-        setResponse(decodeURIComponent(rawResponse));
+        // Show text immediately so the user can read while audio loads
+        setResponse(decodeURIComponent(xResponse));
+        setAgent(xAgent);
+        setIntent(xIntent);
 
         const audioBytes = await resp.arrayBuffer();
         if (audioBytes.byteLength > 0) {
-          const audioBlob = new Blob([audioBytes], { type: "audio/mpeg" });
-          const url = URL.createObjectURL(audioBlob);
+          const blob = new Blob([audioBytes], { type: "audio/mpeg" });
+          const url = URL.createObjectURL(blob);
           const audio = new Audio(url);
-          audio.play().catch(() => {});
-          audio.onended = () => URL.revokeObjectURL(url);
+          audio.onended = () => { URL.revokeObjectURL(url); done(); };
+          audio.onerror = () => { URL.revokeObjectURL(url); done(); };
+          audio.play().catch(done);
+        } else {
+          // No audio (TTS not configured) — text already shown, just continue
+          done();
         }
-      } else {
-        const body = await resp.json().catch(() => ({}));
-        setResponse(body.detail || "Voice service unavailable (check ELEVENLABS_API_KEY).");
+      } catch {
+        setResponse("Could not reach backend.");
+        done();
       }
-    } catch {
-      setResponse("Network error contacting backend.");
-    } finally {
-      setBusy(false);
-      setStatus("idle");
-    }
-  };
+    };
+
+    recognition.onerror = (e) => {
+      if (e.error === "no-speech" || e.error === "audio-capture") {
+        // normal — just restart
+      }
+      setListening(false);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+      if (enabledRef.current && !busyRef.current) {
+        setTimeout(startListening, 300);
+      }
+    };
+
+    startListening();
+
+    return () => {
+      recognition.onend = null;
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.stop();
+    };
+  }, [enabled]);
+
+  if (!supported) {
+    return (
+      <p className="text-xs text-red-400">
+        Continuous speech recognition requires Chrome or Edge.
+      </p>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-slate-400">
-          {status === "recording" && (
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-red-500" />
-              Recording…
+      {/* Toggle row */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {listening ? (
+            <span className="relative flex h-3 w-3">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-green-400" />
             </span>
+          ) : (
+            <span className={`h-3 w-3 rounded-full ${enabled ? "bg-yellow-400" : "bg-slate-600"}`} />
           )}
-          {status === "processing" && (
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2 w-2 animate-spin rounded-full border border-accent border-t-transparent" />
-              Processing…
-            </span>
-          )}
-          {status === "idle" && "Hold to talk"}
-        </span>
-        <Volume2 size={14} className="text-slate-500" />
-      </div>
-
-      <div className="flex justify-center">
-        <button
-          className={`flex h-16 w-16 items-center justify-center rounded-full border-2 transition-all duration-150 ${
-            recording
-              ? "scale-110 border-red-500 bg-red-500/20 text-red-400"
+          <span className="text-xs text-slate-400">
+            {!enabled
+              ? "Voice assistant off"
               : busy
-              ? "cursor-not-allowed border-slate-600 bg-slate-800 text-slate-500"
-              : "border-accent bg-accent/10 text-accent hover:bg-accent/20 active:scale-95"
+              ? "Responding…"
+              : listening
+              ? "Listening…"
+              : "Waiting for speech…"}
+          </span>
+        </div>
+
+        <button
+          onClick={() => setEnabled((v) => !v)}
+          className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
+            enabled
+              ? "border-green-500 bg-green-500/20 text-green-400 hover:bg-green-500/30"
+              : "border-slate-600 bg-slate-800 text-slate-400 hover:border-slate-500"
           }`}
-          onMouseDown={startRecording}
-          onMouseUp={stopRecording}
-          onTouchStart={(e) => { e.preventDefault(); startRecording(); }}
-          onTouchEnd={(e) => { e.preventDefault(); stopRecording(); }}
-          disabled={busy}
-          aria-label={recording ? "Stop recording" : "Start recording"}
+          title={enabled ? "Disable voice assistant" : "Enable voice assistant"}
         >
-          {recording ? <MicOff size={28} /> : <Mic size={28} />}
+          {enabled ? <Mic size={15} /> : <MicOff size={15} />}
         </button>
       </div>
+
+      {/* Keywords hint */}
+      {enabled && !transcript && !response && (
+        <p className="text-xs text-slate-500">
+          Say <span className="text-slate-300">"scan"</span>,{" "}
+          <span className="text-slate-300">"talk"</span>,{" "}
+          <span className="text-slate-300">"track"</span>, or ask anything.
+        </p>
+      )}
 
       {transcript && (
         <div className="rounded bg-slate-800 p-2 text-sm">
@@ -160,7 +230,15 @@ export default function VoicePanel() {
 
       {response && (
         <div className="rounded bg-slate-800 p-2 text-sm">
-          <p className="text-xs text-slate-400">Agent:</p>
+          <div className="flex items-center gap-2">
+            <Volume2 size={11} className="text-slate-400" />
+            <p className="text-xs text-slate-400">{agent || "Agent"}:</p>
+            {intent && intent !== "chat" && (
+              <span className="rounded bg-accent/20 px-1.5 py-0.5 text-xs font-medium text-accent capitalize">
+                {INTENT_LABELS[intent] ?? intent}
+              </span>
+            )}
+          </div>
           <p className="mt-0.5 text-green-300">{response}</p>
         </div>
       )}

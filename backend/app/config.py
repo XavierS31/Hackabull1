@@ -6,7 +6,7 @@ class Settings(BaseSettings):
 
     gemini_api_key: str = ""
     google_api_key: str = ""
-    gemma_model: str = "gemma-4"
+    gemma_model: str = "gemma-4-26b-a4b-it"
     allowed_origins: str = "http://localhost:5173"
     events_dir: str = "data/events"
     fall_threshold_g: float = 2.4

@@ -25,7 +25,7 @@ export default function ChatPanel() {
         body: JSON.stringify({ message: text }),
       });
       const data = await res.json();
-      appendMsg("agent", data.response);
+      appendMsg("agent", data.response ?? data.detail ?? "No response.");
     } catch {
       appendMsg("error", "Request failed — is the backend running?");
     } finally {
@@ -47,21 +47,6 @@ export default function ChatPanel() {
       appendMsg("agent", `Vision Agent: ${data.description}`);
     } catch {
       appendMsg("error", "Vision analysis failed.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const triggerTalk = async () => {
-    if (loading) return;
-    appendMsg("user", "[TALK] Activating conversation agent…");
-    setLoading(true);
-    try {
-      const res = await fetch("/api/triggers/talk", { method: "POST" });
-      const data = await res.json();
-      appendMsg("agent", `Conversation Agent: ${data.response}`);
-    } catch {
-      appendMsg("error", "TALK trigger failed.");
     } finally {
       setLoading(false);
     }
@@ -91,22 +76,6 @@ export default function ChatPanel() {
       appendMsg("error", "Emergency call request failed.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const triggerTrack = async () => {
-    if (loading) return;
-    const desc = window.prompt("Describe the event to track (Tracking Dementia):");
-    if (!desc?.trim()) return;
-    try {
-      await fetch("/api/triggers/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: desc.trim() }),
-      });
-      appendMsg("agent", `Tracking Dementia: Logged — "${desc.trim()}"`);
-    } catch {
-      appendMsg("error", "TRACK trigger failed.");
     }
   };
 
@@ -167,23 +136,6 @@ export default function ChatPanel() {
           className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-slate-300 disabled:opacity-40"
         >
           <Eye size={13} />
-        </button>
-      </div>
-
-      <div className="flex gap-1">
-        <button
-          onClick={triggerTalk}
-          disabled={loading}
-          className="flex-1 rounded border border-slate-700 px-2 py-1 text-xs text-slate-400 hover:border-accent hover:text-accent disabled:opacity-40"
-        >
-          TALK
-        </button>
-        <button
-          onClick={triggerTrack}
-          disabled={loading}
-          className="flex-1 rounded border border-slate-700 px-2 py-1 text-xs text-slate-400 hover:border-accent hover:text-accent disabled:opacity-40"
-        >
-          TRACK
         </button>
         <button
           onClick={triggerCall}
