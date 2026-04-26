@@ -214,10 +214,10 @@ export default function VoicePanel() {
 
       {/* Keywords hint */}
       {enabled && !transcript && !response && (
-        <p className="text-xs text-slate-500">
-          Say <span className="text-slate-300">"scan"</span>,{" "}
-          <span className="text-slate-300">"talk"</span>,{" "}
-          <span className="text-slate-300">"track"</span>, or ask anything.
+        <p className="text-xs text-muted">
+          Say <span className="text-accent">"detect"</span>,{" "}
+          <span className="text-accent">"scan"</span>, or{" "}
+          <span className="text-accent">"track"</span>, or ask anything.
         </p>
       )}
 

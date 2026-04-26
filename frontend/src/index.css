@@ -9,10 +9,23 @@
 
 body {
   margin: 0;
-  background: #020617;
-  color: #e2e8f0;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(34, 211, 238, 0.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(8, 145, 178, 0.10), transparent 60%),
+    #04121b;
+  color: #e0f2fe;
+  min-height: 100vh;
 }
 
 #root {
   min-height: 100vh;
 }
+
+/* Nicer scrollbars in scrollable panels */
+.thin-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.25);
+  border-radius: 3px;
+}
+.thin-scroll::-webkit-scrollbar-thumb:hover { background: rgba(34, 211, 238, 0.5); }

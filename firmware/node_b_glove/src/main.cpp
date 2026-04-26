@@ -1,30 +1,12 @@
-// Arduino IDE sketch for Node B (Glove) -- ESP32 dev board.
-// Open in Arduino IDE with: Tools -> Board -> "ESP32 Dev Module" (or your board).
-//
-// Outputs:
-//   1. Serial JSON at 10 Hz (one packet per line) -- read by scripts/serial_bridge.py.
-//      Format: {"x":..,"y":..,"z":..,"ir_triggered":bool}
-//   2. UDP JSON to ORCHESTRATOR_IP:9002 (only when Wi-Fi connects).
-//   3. Local TFT status screen + buzzer alerts.
-//
-// The Wi-Fi connect attempt is non-blocking with a timeout so the loop runs
-// (and Serial output flows) even if Wi-Fi never comes up.
-
+#include <Arduino.h>
 #include <WiFi.h>
-#include <TFT_eSPI.h>
 #include <WiFiUdp.h>
 #include <Wire.h>
+#include <TFT_eSPI.h>
 
-// --- TFT_eSPI Settings (Overrides User_Setup.h) ---
-#define ST7735_DRIVER
-#define TFT_WIDTH  128
-#define TFT_HEIGHT 128
-#define TFT_MOSI 23
-#define TFT_SCLK 18
-#define TFT_CS    5
-#define TFT_DC    27
-#define TFT_RST   4
-#define SPI_FREQUENCY 27000000
+// TFT_eSPI is configured via build_flags in platformio.ini.
+// (USER_SETUP_LOADED=1 + ST7735_DRIVER, TFT_MOSI=23, TFT_SCLK=18,
+//  TFT_CS=5, TFT_DC=27, TFT_RST=4, SPI_FREQUENCY=27000000).
 
 // --- Pin Definitions ---
 #define BUZZER_PIN 12
@@ -36,7 +18,7 @@ const char *WIFI_SSID = "Spheal";
 const char *WIFI_PASSWORD = "amonguss";
 const char *ORCHESTRATOR_IP = "172.20.10.7";
 const uint16_t ORCHESTRATOR_UDP_PORT = 9002;
-constexpr unsigned long WIFI_CONNECT_TIMEOUT_MS = 10000;  // give up after 10s, keep running
+constexpr unsigned long WIFI_CONNECT_TIMEOUT_MS = 10000;
 
 // --- Variables ---
 TFT_eSPI tft = TFT_eSPI();
@@ -46,7 +28,6 @@ bool irTriggered = false;
 bool fallDetected = false;
 bool mpu_ok = false;
 bool wifi_ok = false;
-unsigned long lastUdpMs = 0;
 unsigned long lastSerialMs = 0;
 unsigned long lastScreenMs = 0;
 unsigned long lastFallBeepMs = 0;
@@ -100,7 +81,6 @@ void updateScreen() {
   }
 }
 
-// Builds the JSON payload the backend expects (matches ImuPacket schema).
 size_t buildPayload(char *buf, size_t bufsz) {
   return snprintf(
       buf, bufsz,
@@ -152,8 +132,6 @@ void loop() {
 
   unsigned long now = millis();
 
-  // Send Serial + (optional) UDP at 10 Hz. The serial_bridge.py script reads
-  // these lines and forwards them to the backend over UDP/9002.
   if (now - lastSerialMs >= TX_INTERVAL_MS) {
     lastSerialMs = now;
     char payload[160];

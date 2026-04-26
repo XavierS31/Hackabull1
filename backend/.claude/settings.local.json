@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pio --version)",
+      "Bash(pio run *)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"C:/Users/Xavie/OneDrive/Desktop/Hackabull/scripts/ensure_setup.ps1\")",
+      "Bash(powershell *)",
+      "Bash(pio device *)",
+      "Bash(PLATFORMIO_UPLOAD_SPEED=115200 pio run -t upload --upload-port COM5)",
+      "Bash(PLATFORMIO_UPLOAD_FLAGS=\"--before=no_reset\" pio run -t upload --upload-port COM5)",
+      "Bash(cmd *)",
+      "Bash(npm run *)",
+      "Bash(PYTHONUNBUFFERED=1 C:/Users/Xavie/OneDrive/Desktop/Hackabull/.venv/Scripts/python.exe *)",
+      "Bash(curl -s -X POST \"http://127.0.0.1:8000/api/cameras/glasses/start\" -H \"Content-Type: application/json\" -d \"{\\\\\"url\\\\\":\\\\\"http://172.20.10.8:81/stream\\\\\"}\")",
+      "Bash(curl -s \"http://127.0.0.1:8000/api/hardware/glasses/status\")",
+      "Bash(curl -s \"http://127.0.0.1:8000/api/activity\")",
+      "Bash(curl *)",
+      "Bash(grep -rn \"qr\\\\|QR\\\\|onboarding\" \"C:/Users/Xavie/OneDrive/Desktop/Hackabull/frontend/src/\" echo \"---\" grep -n \"call_gemma_with_qr\" \"C:/Users/Xavie/OneDrive/Desktop/Hackabull/backend/app/services/gemma.py\" echo \"---\" grep -n \"get_object_state\\\\|detection\\\\|object\" \"C:/Users/Xavie/OneDrive/Desktop/Hackabull/backend/app/routes/\" -r)",
+      "Bash(python -c \"import sys, json; d=json.load\\(sys.stdin\\); print\\('\\\\n'.join\\(sorted\\(d.get\\('paths',{}\\).keys\\(\\)\\)\\)\\)\")",
+      "Bash(C:/Users/Xavie/OneDrive/Desktop/Hackabull/.venv/Scripts/python.exe *)",
+      "Bash(\"C:/Users/Xavie/OneDrive/Desktop/Hackabull/.venv/Scripts/python.exe\" -m uvicorn app.main:app --host 0.0.0.0 --port 8000)",
+      "Bash(python -c \"import sys, json; paths=sorted\\(json.load\\(sys.stdin\\).get\\('paths',{}\\).keys\\(\\)\\); print\\(f'{len\\(paths\\)} routes mounted:'\\); [print\\('  ' + p\\) for p in paths]\")"
+    ]
+  }
+}

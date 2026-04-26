@@ -6,19 +6,19 @@ class Settings(BaseSettings):
 
     gemini_api_key: str = ""
     google_api_key: str = ""
-    gemma_model: str = "gemma-4-26b-a4b-it"
+    gemma_model: str = "gemma-4"
     allowed_origins: str = "http://localhost:5173"
     events_dir: str = "data/events"
     fall_threshold_g: float = 2.4
-    pre_event_seconds: int = 10
-    post_event_seconds: int = 10
+    pre_event_seconds: int = 2
+    post_event_seconds: int = 3
     imu_udp_host: str = "0.0.0.0"
     imu_udp_port: int = 9002
     glasses_stream_url: str = ""
     glove_stream_url: str = ""
     # Hardware node IPs (used to send commands back to ESP32 nodes)
     glove_ip: str = "192.168.4.11"
-    glasses_ip: str = "192.168.4.10"
+    glasses_ip: str = "172.20.10.8"
     # ElevenLabs voice
     elevenlabs_api_key: str = ""
     elevenlabs_voice_id: str = "JBFqnCBsd6RMkjVDRZzb"  # George
@@ -26,12 +26,6 @@ class Settings(BaseSettings):
     # Firebase (optional — falls back to local storage when empty)
     firebase_service_account: str = ""  # path to service-account JSON
     firebase_storage_bucket: str = ""   # e.g. "your-project.appspot.com"
-    # Twilio (optional — required only for emergency phone calls)
-    twilio_account_sid: str = ""
-    twilio_auth_token: str = ""
-    twilio_from_number: str = ""        # E.164 format, e.g. +15551234567
-    twilio_webhook_base_url: str = ""   # public HTTPS URL (e.g. ngrok) for Twilio webhooks
-    emergency_contact_number: str = "+16893481796"  # hardcoded fallback
 
     @property
     def cors_origins(self) -> list[str]:
@@ -93,16 +87,6 @@ TRACKING_SYSTEM = (
     "You are a dementia tracking assistant. You have access to the patient's recent activity log. "
     "Answer questions about what happened, when, and why based on the log provided. "
     "Be clear and compassionate."
-)
-
-EMERGENCY_CALL_SYSTEM = (
-    "You are an AI emergency coordinator on a live phone call with a patient's emergency contact. "
-    "A wearable AI system detected that the patient needs help. "
-    "Be calm, concise, and factual. Answer questions clearly. Reassure the contact that the system "
-    "is monitoring the situation. If asked for advice, suggest they go to the patient or call 911. "
-    "When the contact says goodbye or has no more questions and the situation is resolved, "
-    "end your reply with exactly the token [END_CALL] on its own at the very end. "
-    "Never include [END_CALL] mid-sentence. Never make up medical information."
 )
 
 settings = Settings()

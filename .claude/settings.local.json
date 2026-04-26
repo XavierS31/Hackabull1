@@ -1,7 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -c \"from app.main import app; print\\('OK', len\\(app.routes\\)\\)\")"
+      "Bash(python -c \"from app.main import app; print\\('OK', len\\(app.routes\\)\\)\")",
+      "Bash(C:/Users/Xavie/OneDrive/Desktop/Hackabull/.venv/Scripts/python.exe *)",
+      "Bash(powershell *)",
+      "Bash(cmd *)",
+      "Bash(\"C:/Users/Xavie/OneDrive/Desktop/Hackabull/.venv/Scripts/python.exe\" -m uvicorn app.main:app --host 0.0.0.0 --port 8000)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://127.0.0.1:8000/healthz)",
+      "Bash(curl -s -m 3 -I http://172.20.10.8:81/stream)",
+      "Bash(curl -s -m 5 -I http://172.20.10.8:81/stream)",
+      "Bash(echo \"exit=$?\")"
     ]
   }
 }

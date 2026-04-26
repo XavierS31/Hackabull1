@@ -1,9 +1,3 @@
-// Arduino IDE sketch for Node A (Glasses) -- AI-Thinker ESP32-CAM.
-// Identical to firmware/glasses/src/main.cpp. Open this file in Arduino IDE
-// with: Tools -> Board -> "AI Thinker ESP32-CAM", Tools -> Partition Scheme -> "Huge APP".
-//
-// MJPEG stream is served on http://<board_ip>:81/stream once Wi-Fi connects.
-
 #include <Arduino.h>
 #include "esp_camera.h"
 #include <WiFi.h>
@@ -19,6 +13,7 @@ static const char* STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=fra
 static const char* STREAM_BOUNDARY = "\r\n--frame\r\n";
 static const char* STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
+// Camera configuration for AI-Thinker ESP32-CAM
 static camera_config_t camera_config_init() {
   camera_config_t config = {};
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -41,10 +36,17 @@ static camera_config_t camera_config_init() {
   config.pin_reset = -1;
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
+
+  // CIF (400x296) is the "Golden Ratio" for ESP32.
+  // It's much lighter than VGA but clearer than QVGA.
   config.frame_size = FRAMESIZE_CIF;
-  config.jpeg_quality = 12;
+  config.jpeg_quality = 12; // 10-14 is best for AI clarity without lag
+
+  // Double buffering is only smooth if the WiFi can keep up.
+  // We'll keep it at 2 but use a different grab mode.
   config.fb_count = 2;
   config.grab_mode = CAMERA_GRAB_LATEST;
+
   return config;
 }
 
@@ -66,6 +68,7 @@ static esp_err_t stream_handler(httpd_req_t* req) {
       res = httpd_resp_send_chunk(req, (const char*)fb->buf, fb->len);
     }
     esp_camera_fb_return(fb);
+
     if (res != ESP_OK) break;
   }
   return res;
@@ -74,12 +77,14 @@ static esp_err_t stream_handler(httpd_req_t* req) {
 static void start_camera_server() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = 81;
+
   httpd_uri_t stream_uri = {
     .uri = "/stream",
     .method = HTTP_GET,
     .handler = stream_handler,
     .user_ctx = NULL
   };
+
   if (httpd_start(&stream_httpd, &config) == ESP_OK) {
     httpd_register_uri_handler(stream_httpd, &stream_uri);
   }
@@ -110,5 +115,5 @@ void setup() {
 }
 
 void loop() {
-  delay(10);
+  delay(10); // Low power delay
 }
