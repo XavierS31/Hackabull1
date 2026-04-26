@@ -1,10 +1,12 @@
-import { Activity, Camera, ShieldAlert, UserRound } from "lucide-react";
+import { Activity, Camera, MessageSquare, Mic, ShieldAlert, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import AgentToggles from "./components/AgentToggles";
 import CameraPanel from "./components/CameraPanel";
+import ChatPanel from "./components/ChatPanel";
 import EventsGallery from "./components/EventsGallery";
 import PatientProfile from "./components/PatientProfile";
 import ThinkingFeed from "./components/ThinkingFeed";
+import VoicePanel from "./components/VoicePanel";
 
 const API_BASE = "";
 
@@ -90,6 +92,12 @@ export default function App() {
         </Panel>
         <Panel title="Agent Status" icon={Activity}>
           <AgentToggles agents={agents} onUpdate={setAgents} />
+        </Panel>
+        <Panel title="Chatbot / Conversation" icon={MessageSquare}>
+          <ChatPanel />
+        </Panel>
+        <Panel title="Voice Assistant" icon={Mic}>
+          <VoicePanel />
         </Panel>
       </section>
 

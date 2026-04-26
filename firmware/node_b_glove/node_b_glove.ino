@@ -105,6 +105,29 @@ static esp_err_t stream_handler(httpd_req_t* req) {
   return res;
 }
 
+static esp_err_t buzz_handler(httpd_req_t* req) {
+  char query[64] = {0};
+  uint16_t freq = 1100;
+  uint16_t dur = 500;
+
+  if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
+    char val[16];
+    if (httpd_query_key_value(query, "freq", val, sizeof(val)) == ESP_OK) {
+      freq = (uint16_t)atoi(val);
+    }
+    if (httpd_query_key_value(query, "dur", val, sizeof(val)) == ESP_OK) {
+      dur = (uint16_t)atoi(val);
+    }
+  }
+
+  beepAlert(freq, dur);
+
+  httpd_resp_set_type(req, "application/json");
+  const char* resp_body = "{\"ok\":true}";
+  httpd_resp_send(req, resp_body, strlen(resp_body));
+  return ESP_OK;
+}
+
 static void start_camera_server() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = 81;
@@ -117,8 +140,16 @@ static void start_camera_server() {
     .user_ctx = NULL
   };
 
+  httpd_uri_t buzz_uri = {
+    .uri = "/buzz",
+    .method = HTTP_GET,
+    .handler = buzz_handler,
+    .user_ctx = NULL
+  };
+
   if (httpd_start(&stream_httpd, &config) == ESP_OK) {
     httpd_register_uri_handler(stream_httpd, &stream_uri);
+    httpd_register_uri_handler(stream_httpd, &buzz_uri);
   }
 }
 
