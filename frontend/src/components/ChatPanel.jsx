@@ -1,4 +1,4 @@
-import { Eye, Send } from "lucide-react";
+import { Eye, Phone, Send } from "lucide-react";
 import { useRef, useState } from "react";
 
 export default function ChatPanel() {
@@ -62,6 +62,33 @@ export default function ChatPanel() {
       appendMsg("agent", `Conversation Agent: ${data.response}`);
     } catch {
       appendMsg("error", "TALK trigger failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const triggerCall = async () => {
+    if (loading) return;
+    const to = window.prompt("Emergency contact phone number (E.164 format):\nLeave blank to use default.", "+16893481796") ?? "";
+    const location = window.prompt("Patient location (optional — e.g. 'living room'):", "") ?? "";
+    appendMsg("user", `[CALL] Initiating emergency call${location ? ` — location: ${location}` : ""}…`);
+    setLoading(true);
+    try {
+      const body = { location: location.trim() };
+      if (to.trim()) body.to = to.trim();
+      const res = await fetch("/api/call/emergency", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.call_sid) {
+        appendMsg("agent", `Emergency call placed to ${data.to}. Call SID: ${data.call_sid}`);
+      } else {
+        appendMsg("error", data.error || "Call failed.");
+      }
+    } catch {
+      appendMsg("error", "Emergency call request failed.");
     } finally {
       setLoading(false);
     }
@@ -157,6 +184,14 @@ export default function ChatPanel() {
           className="flex-1 rounded border border-slate-700 px-2 py-1 text-xs text-slate-400 hover:border-accent hover:text-accent disabled:opacity-40"
         >
           TRACK
+        </button>
+        <button
+          onClick={triggerCall}
+          disabled={loading}
+          title="Call emergency contact"
+          className="flex items-center gap-1 rounded border border-red-800 px-2 py-1 text-xs text-red-400 hover:border-red-500 hover:text-red-300 disabled:opacity-40"
+        >
+          <Phone size={11} /> CALL
         </button>
       </div>
     </div>

@@ -5,6 +5,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .routes import agents, cameras, chat, events, hardware, onboarding, voice, ws
+
+try:
+    from .routes import twilio_call as _twilio_call_mod
+except ImportError:
+    _twilio_call_mod = None  # type: ignore[assignment]
+    print("[Twilio] 'twilio' package not installed — call endpoints disabled. Run: pip install twilio")
 from .services.imu import UdpImuProtocol
 from .state import camera_manager
 
@@ -27,6 +33,8 @@ app.include_router(events.router)
 app.include_router(chat.router)
 app.include_router(voice.router)
 app.include_router(hardware.router)
+if _twilio_call_mod:
+    app.include_router(_twilio_call_mod.router)
 app.include_router(ws.router)
 
 

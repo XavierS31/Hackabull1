@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     # Firebase (optional — falls back to local storage when empty)
     firebase_service_account: str = ""  # path to service-account JSON
     firebase_storage_bucket: str = ""   # e.g. "your-project.appspot.com"
+    # Twilio (optional — required only for emergency phone calls)
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_from_number: str = ""        # E.164 format, e.g. +15551234567
+    twilio_webhook_base_url: str = ""   # public HTTPS URL (e.g. ngrok) for Twilio webhooks
+    emergency_contact_number: str = "+16893481796"  # hardcoded fallback
 
     @property
     def cors_origins(self) -> list[str]:
@@ -87,6 +93,16 @@ TRACKING_SYSTEM = (
     "You are a dementia tracking assistant. You have access to the patient's recent activity log. "
     "Answer questions about what happened, when, and why based on the log provided. "
     "Be clear and compassionate."
+)
+
+EMERGENCY_CALL_SYSTEM = (
+    "You are an AI emergency coordinator on a live phone call with a patient's emergency contact. "
+    "A wearable AI system detected that the patient needs help. "
+    "Be calm, concise, and factual. Answer questions clearly. Reassure the contact that the system "
+    "is monitoring the situation. If asked for advice, suggest they go to the patient or call 911. "
+    "When the contact says goodbye or has no more questions and the situation is resolved, "
+    "end your reply with exactly the token [END_CALL] on its own at the very end. "
+    "Never include [END_CALL] mid-sentence. Never make up medical information."
 )
 
 settings = Settings()

@@ -1,7 +1,11 @@
 import threading
 import time
 
-import cv2
+try:
+    import cv2
+    _CV2 = True
+except ImportError:
+    _CV2 = False
 
 from .frame_store import FrameStore
 
@@ -35,6 +39,8 @@ class CameraManager:
             self.stop(camera)
 
     def _run(self, camera: str, url: str, stop_event: threading.Event) -> None:
+        if not _CV2:
+            return
         cap = cv2.VideoCapture(url)
         if not cap.isOpened():
             return
