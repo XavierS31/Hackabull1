@@ -36,3 +36,4 @@ class CriticalEvent(BaseModel):
     timestamp: float
     trigger: str
     media: dict[str, str]
+    notified: list[str] = []

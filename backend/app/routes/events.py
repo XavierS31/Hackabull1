@@ -7,7 +7,15 @@ from ..config import TRACKING_SYSTEM
 from ..models import CriticalEvent
 from ..services import firebase_service
 from ..services.gemma import call_gemma_text
-from ..state import activity_log, append_activity, event_recorder, events_dir, hub
+from ..state import (
+    activity_log,
+    append_activity,
+    ensure_agent_enabled,
+    event_recorder,
+    events_dir,
+    hub,
+    patient_profile,
+)
 
 router = APIRouter()
 
@@ -35,23 +43,35 @@ async def event_media(filename: str) -> Response:
 
 
 @router.post("/api/events/fall-test")
-async def trigger_test_fall() -> dict[str, str]:
-    event_id = event_recorder.trigger_fall(trigger="manual_test")
-    append_activity({"ts": time.time(), "type": "fall", "trigger": "manual_test", "event_id": event_id})
+async def trigger_test_fall() -> dict[str, str | list[str]]:
+    emergency_contact = patient_profile.get("emergency_contact", "emergency services")
+    notified = ["911", emergency_contact]
+    event_id = event_recorder.trigger_fall(trigger="manual_test", notified=notified)
+    append_activity({
+        "ts": time.time(),
+        "type": "fall",
+        "trigger": "manual_test",
+        "event_id": event_id,
+        "notified": notified,
+    })
     await hub.broadcast(
         "thinking",
         {
             "type": "thinking",
-            "line": f"Falling Agent: Test fall triggered. Event {event_id} — capturing ±10s clip.",
+            "line": (
+                f"Falling Agent: Test fall triggered. Event {event_id} — "
+                f"notifying {', '.join(notified)} and capturing ±10s clip."
+            ),
             "ts": time.time(),
         },
     )
-    return {"event_id": event_id}
+    return {"event_id": event_id, "notified": notified}
 
 
 @router.get("/api/events/ask")
 async def ask_events(q: str = "") -> JSONResponse:
     """Tracking Dementia — natural-language query over the activity log."""
+    ensure_agent_enabled("Tracking Dementia")
     if not q.strip():
         return JSONResponse({"answer": "Please provide a question.", "agent": "Tracking Dementia"})
 

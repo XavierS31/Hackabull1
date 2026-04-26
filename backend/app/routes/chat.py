@@ -7,7 +7,14 @@ from fastapi.responses import JSONResponse
 from ..config import CHATBOT_SYSTEM, CONVERSATION_SYSTEM, VISION_SYSTEM
 from ..models import ChatRequest, TrackRequest, VisionRequest
 from ..services.gemma import call_gemma_text
-from ..state import activity_log, append_activity, frame_store, hub
+from ..state import (
+    activity_log,
+    append_activity,
+    ensure_agent_enabled,
+    frame_store,
+    hub,
+    voice_service,
+)
 
 router = APIRouter()
 
@@ -15,6 +22,7 @@ router = APIRouter()
 @router.post("/api/chat")
 async def chat_endpoint(request: ChatRequest) -> JSONResponse:
     """Chatbot agent — text message with optional camera frame."""
+    ensure_agent_enabled("Chatbot")
     image_bytes: bytes | None = None
     if request.camera in ("glasses", "glove"):
         image_bytes = frame_store.get_latest_jpeg(request.camera)
@@ -35,6 +43,7 @@ async def chat_endpoint(request: ChatRequest) -> JSONResponse:
 @router.post("/api/vision/analyze")
 async def vision_analyze(request: VisionRequest) -> JSONResponse:
     """Vision Agent — describe the surroundings from the latest camera frame."""
+    ensure_agent_enabled("Vision Agent")
     camera = request.camera if request.camera in ("glasses", "glove") else "glasses"
     image_bytes = frame_store.get_latest_jpeg(camera)
 
@@ -58,9 +67,63 @@ async def vision_analyze(request: VisionRequest) -> JSONResponse:
     return JSONResponse({"description": description, "camera": camera, "agent": "Vision Agent"})
 
 
+@router.post("/api/triggers/vision")
+async def trigger_vision(camera: str = "glasses") -> JSONResponse:
+    """
+    Surroundings trigger — Vision Agent narrates the latest frame and pushes TTS.
+    Use this for the manual "describe my surroundings" button on the glove.
+    """
+    ensure_agent_enabled("Vision Agent")
+    if camera not in ("glasses", "glove"):
+        camera = "glasses"
+
+    image_bytes = frame_store.get_latest_jpeg(camera)
+    if not image_bytes:
+        return JSONResponse({
+            "description": "No camera frame available yet.",
+            "camera": camera,
+            "agent": "Vision Agent",
+        })
+
+    description = await call_gemma_text(
+        VISION_SYSTEM,
+        "Briefly describe the surroundings to help the patient walk safely.",
+        image_bytes,
+    )
+
+    append_activity({
+        "ts": time.time(),
+        "type": "vision",
+        "camera": camera,
+        "description": description,
+        "trigger": "surroundings",
+    })
+
+    await hub.broadcast("thinking", {
+        "type": "thinking",
+        "line": f"Vision Agent (Surroundings/{camera}): {description[:140]}",
+        "ts": time.time(),
+    })
+
+    if voice_service:
+        try:
+            audio = await voice_service.synthesize_async(description)
+            await hub.broadcast_audio(audio)
+        except Exception as exc:
+            print(f"[Voice] Surroundings TTS failed: {exc}")
+
+    return JSONResponse({
+        "description": description,
+        "camera": camera,
+        "agent": "Vision Agent",
+        "trigger": "surroundings",
+    })
+
+
 @router.post("/api/triggers/track")
 async def trigger_track(request: TrackRequest) -> JSONResponse:
     """Tracking Dementia — TRACK manual input logs an event to memory."""
+    ensure_agent_enabled("Tracking Dementia")
     entry: dict[str, Any] = {"ts": time.time(), "type": "track", "description": request.description}
     append_activity(entry)
 
@@ -76,6 +139,7 @@ async def trigger_track(request: TrackRequest) -> JSONResponse:
 @router.post("/api/triggers/talk")
 async def trigger_talk() -> JSONResponse:
     """Conversation Agent — TALK manual input starts a conversation about what the camera sees."""
+    ensure_agent_enabled("Conversation Agent")
     image_bytes = frame_store.get_latest_jpeg("glasses")
     prompt = (
         "Start a friendly conversation about what you see in this image."

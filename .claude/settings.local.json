@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"from app.main import app; print\\('OK', len\\(app.routes\\)\\)\")"
+    ]
+  }
+}

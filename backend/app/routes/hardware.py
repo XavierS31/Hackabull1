@@ -1,10 +1,11 @@
 """
-Hardware command endpoints — send HTTP commands back to ESP32 nodes.
+Hardware command endpoints — talk back to the ESP32 nodes.
 
-Node B (glove) firmware must expose:
-  GET http://<glove_ip>:81/buzz?freq=<hz>&dur=<ms>
+Node B (glove) firmware exposes:
+  GET http://<glove_ip>:81/buzz?freq=<hz>&dur=<ms>   — passive buzzer on GPIO 12
+  GET http://<glove_ip>:81/stream                    — MJPEG camera stream
 
-Node A (glasses) is camera-only and has no command endpoint.
+Node A (glasses) is camera-only.
 """
 import httpx
 from fastapi import APIRouter
@@ -23,7 +24,7 @@ _NODE_URLS = {
 @router.post("/api/hardware/glove/buzz")
 async def buzz_glove(freq: int = 1100, dur: int = 500) -> JSONResponse:
     """
-    Trigger the glove's I2S speaker to emit a beep tone.
+    Trigger the glove's passive buzzer (GPIO 12) via LEDC PWM.
     freq — frequency in Hz (default 1100)
     dur  — duration in milliseconds (default 500)
     """

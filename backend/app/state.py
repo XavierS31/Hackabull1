@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Any
 
+from fastapi import HTTPException
+
 from .config import settings
 from .core.camera import CameraManager
 from .core.event_recorder import EventRecorder
@@ -45,6 +47,12 @@ def append_activity(entry: dict[str, Any]) -> None:
     activity_log.append(entry)
     if len(activity_log) > MAX_ACTIVITY_LOG:
         activity_log.pop(0)
+
+
+def ensure_agent_enabled(name: str) -> None:
+    """Raise 503 if the agent is disabled in agent_status."""
+    if not agent_status.get(name, False):
+        raise HTTPException(status_code=503, detail=f"Agent '{name}' is disabled.")
 
 
 # ---------- Optional services ----------

@@ -5,6 +5,7 @@ This project uses two AI-Thinker ESP32-CAM boards.
 ## Node A: Glasses (FPV stream)
 - Purpose: obstacle/object vision feed.
 - Output: MJPEG stream on `http://<ip>:81/stream`.
+- Sketch location: `firmware/glasses/glasses.ino`.
 
 ## Node B: Glove (fall + interaction)
 - Purpose: IMU/IR fall telemetry, close-up camera feed, screen/speaker interaction.

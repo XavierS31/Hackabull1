@@ -21,12 +21,12 @@ class EventRecorder:
         self.lock = threading.Lock()
         self.events_dir.mkdir(parents=True, exist_ok=True)
 
-    def trigger_fall(self, trigger: str) -> str:
+    def trigger_fall(self, trigger: str, notified: list[str] | None = None) -> str:
         event_id = str(uuid.uuid4())
         trigger_ts = time.time()
         worker = threading.Thread(
             target=self._finalize_event,
-            args=(event_id, trigger_ts, trigger),
+            args=(event_id, trigger_ts, trigger, list(notified or [])),
             daemon=True,
         )
         worker.start()
@@ -36,7 +36,9 @@ class EventRecorder:
         with self.lock:
             return list(self.events)
 
-    def _finalize_event(self, event_id: str, trigger_ts: float, trigger: str) -> None:
+    def _finalize_event(
+        self, event_id: str, trigger_ts: float, trigger: str, notified: list[str]
+    ) -> None:
         time.sleep(self.post_seconds)
         start_ts = trigger_ts - self.pre_seconds
         end_ts = trigger_ts + self.post_seconds
@@ -66,6 +68,7 @@ class EventRecorder:
             timestamp=trigger_ts,
             trigger=trigger,
             media=media,
+            notified=notified,
         )
 
         # Persist metadata to Firestore

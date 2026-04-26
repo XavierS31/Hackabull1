@@ -45,11 +45,11 @@ Open:
 ## 4) Firmware
 
 Flash:
-- `firmware/node_a_glasses/node_a_glasses.ino`
+- `firmware/glasses/glasses.ino`
 - `firmware/node_b_glove/node_b_glove.ino`
 
-For Node B TFT pins, use:
-- `firmware/node_b_glove/TFT_User_Setup_ESP32CAM.h`
+For Node B TFT pins, see the `TFT_eSPI` `#define` block at the top of:
+- `firmware/node_b_glove/node_b_glove.ino`
 
 Pin mapping details:
 - `firmware/README.md`

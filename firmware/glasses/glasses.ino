@@ -1,10 +1,11 @@
+#include <Arduino.h>
 #include "esp_camera.h"
 #include <WiFi.h>
 #include "esp_http_server.h"
 
-// Replace with your WLAN credentials.
-const char* WIFI_SSID = "YOUR_SSID";
-const char* WIFI_PASSWORD = "YOUR_PASSWORD";
+// ---------- WLAN ----------
+const char* WIFI_SSID = "Spheal";
+const char* WIFI_PASSWORD = "amonguss";
 
 static httpd_handle_t stream_httpd = NULL;
 
@@ -12,9 +13,9 @@ static const char* STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=fra
 static const char* STREAM_BOUNDARY = "\r\n--frame\r\n";
 static const char* STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
-// AI-Thinker ESP32-CAM camera pin map
+// Camera configuration for AI-Thinker ESP32-CAM
 static camera_config_t camera_config_init() {
-  camera_config_t config;
+  camera_config_t config = {};
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
   config.pin_d0 = 5;
@@ -35,26 +36,31 @@ static camera_config_t camera_config_init() {
   config.pin_reset = -1;
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
-  config.frame_size = FRAMESIZE_VGA;
-  config.jpeg_quality = 12;
+  
+  
+
+  
+  // CIF (400x296) is the "Golden Ratio" for ESP32. 
+  // It's much lighter than VGA but clearer than QVGA.
+  config.frame_size = FRAMESIZE_CIF;
+  config.jpeg_quality = 12; // 10-14 is best for AI clarity without lag
+  
+  // Double buffering is only smooth if the WiFi can keep up. 
+  // We'll keep it at 2 but use a different grab mode.
   config.fb_count = 2;
-  config.fb_location = CAMERA_FB_IN_PSRAM;
   config.grab_mode = CAMERA_GRAB_LATEST;
+
   return config;
 }
 
 static esp_err_t stream_handler(httpd_req_t* req) {
   char buf[64];
   esp_err_t res = httpd_resp_set_type(req, STREAM_CONTENT_TYPE);
-  if (res != ESP_OK) {
-    return res;
-  }
+  if (res != ESP_OK) return res;
 
   while (true) {
     camera_fb_t* fb = esp_camera_fb_get();
-    if (!fb) {
-      return ESP_FAIL;
-    }
+    if (!fb) return ESP_FAIL;
 
     res = httpd_resp_send_chunk(req, STREAM_BOUNDARY, strlen(STREAM_BOUNDARY));
     if (res == ESP_OK) {
@@ -66,9 +72,7 @@ static esp_err_t stream_handler(httpd_req_t* req) {
     }
     esp_camera_fb_return(fb);
 
-    if (res != ESP_OK) {
-      break;
-    }
+    if (res != ESP_OK) break;
   }
   return res;
 }
@@ -76,7 +80,6 @@ static esp_err_t stream_handler(httpd_req_t* req) {
 static void start_camera_server() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = 81;
-  config.max_uri_handlers = 8;
 
   httpd_uri_t stream_uri = {
     .uri = "/stream",
@@ -92,24 +95,22 @@ static void start_camera_server() {
 
 void setup() {
   Serial.begin(115200);
-  Serial.setDebugOutput(false);
 
   camera_config_t cam_cfg = camera_config_init();
-  if (esp_camera_init(&cam_cfg) != ESP_OK) {
-    Serial.println("Camera init failed");
-    while (true) {
-      delay(1000);
-    }
+  esp_err_t cam_err = esp_camera_init(&cam_cfg);
+  if (cam_err != ESP_OK) {
+    Serial.printf("Camera init failed: 0x%x\n", cam_err);
+    return;
   }
 
-  WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
-    delay(300);
+    delay(500);
     Serial.print(".");
   }
-  Serial.println();
-  Serial.print("Node A stream: http://");
+  
+  Serial.println("\nWiFi connected");
+  Serial.print("Stream URL: http://");
   Serial.print(WiFi.localIP());
   Serial.println(":81/stream");
 
@@ -117,5 +118,5 @@ void setup() {
 }
 
 void loop() {
-  delay(1000);
+  delay(10); // Low power delay
 }
